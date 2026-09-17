@@ -62,7 +62,7 @@ def load_base_model(config: ExperimentConfig, *, for_training: bool):
     kwargs: dict[str, Any] = {
         "revision": config.model.revision,
         "trust_remote_code": config.model.trust_remote_code,
-        "torch_dtype": resolve_torch_dtype(config.model.torch_dtype),
+        "dtype": resolve_torch_dtype(config.model.torch_dtype),
         "low_cpu_mem_usage": True,
     }
     if config.model.attn_implementation:
