@@ -12,10 +12,7 @@ from .config import ExperimentConfig
 from .modeling import adapter_checkpoint_path
 from .utils import LOGGER
 
-
-# If you already have this constant somewhere else, DELETE this line
-# and import your existing constant instead.
-HF_REPO_ID = "YOUR_HF_USERNAME/YOUR_REPO_NAME"
+HF_REPO_ID = "Pouyatr/MoCA"
 
 HF_REPO_TYPE = "model"
 
