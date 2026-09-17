@@ -25,6 +25,7 @@ def _release_accelerator_memory() -> None:
 
 def run(args: argparse.Namespace):
     from . import calibrate, cluster, evaluate, generate, prepare, train
+    from ..hf_hub import upload_inference_run_to_hub
     from .common import config_from_args
 
     common = {
@@ -85,15 +86,30 @@ def run(args: argparse.Namespace):
         )
     )
     _release_accelerator_memory()
-    if args.skip_evaluation:
-        return None
-    LOGGER.info("Stage %s: evaluate", evaluation_stage)
-    return evaluate.run(
-        argparse.Namespace(
-            **common,
-            split=args.split,
-            predictions=None,
-            output=None,
-            skip_semantic_sampling=False,
+    result = None
+
+    if not args.skip_evaluation:
+        LOGGER.info("Stage %s: evaluate", evaluation_stage)
+
+        result = evaluate.run(
+            argparse.Namespace(
+                **common,
+                split=args.split,
+                predictions=None,
+                output=None,
+                skip_semantic_sampling=False,
+            )
         )
+
+    LOGGER.info(
+        "Uploading completed inference artifacts to Hugging Face Hub"
     )
+
+    remote_folder = upload_inference_run_to_hub(config)
+
+    LOGGER.info(
+        "Hugging Face run folder: %s",
+        remote_folder,
+    )
+
+    return result
