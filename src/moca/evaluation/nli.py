@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+from ..utils import LOGGER
 import math
 import threading
 from collections.abc import Callable, Sequence
@@ -75,44 +77,111 @@ class BidirectionalNLIScorer:
     def _load(self) -> None:
         if self._predictor is not None or self._model is not None:
             return
+
         with self._load_lock:
             if self._predictor is not None or self._model is not None:
                 return
+
             try:
                 import torch
-                from transformers import AutoModelForSequenceClassification, AutoTokenizer
+                from transformers import (
+                    AutoModelForSequenceClassification,
+                    AutoTokenizer,
+                )
             except (ImportError, ModuleNotFoundError) as error:
                 raise RuntimeError(
-                    "NLI scoring requires torch and transformers; install the project "
-                    "dependencies or inject an entailment predictor"
+                    "NLI scoring requires torch and transformers; "
+                    "install the project dependencies or inject an "
+                    "entailment predictor"
                 ) from error
-
+    
             load_kwargs: dict[str, Any] = {
                 "revision": self.revision,
                 "trust_remote_code": self.trust_remote_code,
             }
-            # Some custom loaders distinguish a missing kwarg from ``None``.
-            load_kwargs = {key: value for key, value in load_kwargs.items() if value is not None}
+
+            load_kwargs = {
+                key: value
+                for key, value in load_kwargs.items()
+                if value is not None
+            }
+
+            LOGGER.info(
+                "Loading NLI tokenizer: model=%s revision=%s",
+                self.model_name_or_path,
+                self.revision or "main",
+            )
+
             tokenizer = AutoTokenizer.from_pretrained(
                 self.model_name_or_path,
                 **load_kwargs,
             )
             tokenizer.truncation_side = self.truncation_side
-            model = AutoModelForSequenceClassification.from_pretrained(
-                self.model_name_or_path,
-                **load_kwargs,
-            )
+
             target_device = self.device
             if target_device is None:
-                target_device = "cuda" if torch.cuda.is_available() else "cpu"
+                target_device = (
+                    "cuda"
+                    if torch.cuda.is_available()
+                    else "cpu"
+                )
+
+            LOGGER.info(
+                "Loading NLI model: model=%s device=%s",
+                self.model_name_or_path,
+                target_device,
+            )
+
+            # microsoft/deberta-large-mnli currently ships a
+            # pytorch_model.bin but no model.safetensors.
+            #
+            # Recent Transformers versions otherwise launch a background
+            # safetensors-conversion request. A failure of that optional
+            # conversion service produces a noisy Thread-auto_conversion
+            # traceback even though the PyTorch checkpoint loads correctly.
+            previous_conversion_setting = os.environ.get(
+                "DISABLE_SAFETENSORS_CONVERSION"
+            )
+            os.environ["DISABLE_SAFETENSORS_CONVERSION"] = "1"
+
+            try:
+                model = AutoModelForSequenceClassification.from_pretrained(
+                    self.model_name_or_path,
+                    low_cpu_mem_usage=True,
+                    **load_kwargs,
+                )
+            finally:
+                if previous_conversion_setting is None:
+                    os.environ.pop(
+                        "DISABLE_SAFETENSORS_CONVERSION",
+                        None,
+                    )
+                else:
+                    os.environ[
+                        "DISABLE_SAFETENSORS_CONVERSION"
+                    ] = previous_conversion_setting
+
             model.to(target_device)
             model.eval()
+
+            entailment_index = _find_entailment_index(
+                model.config
+            )
+
+            LOGGER.info(
+                "Loaded NLI model successfully: "
+                "class=%s device=%s entailment_index=%d labels=%s",
+                model.__class__.__name__,
+                target_device,
+                entailment_index,
+                getattr(model.config, "id2label", None),
+            )
 
             self.device = target_device
             self._torch = torch
             self._tokenizer = tokenizer
             self._model = model
-            self._entailment_index = _find_entailment_index(model.config)
+            self._entailment_index = entailment_index
 
     def _statement(self, answer: str, prompt: str | None) -> str:
         answer = str(answer).strip()
