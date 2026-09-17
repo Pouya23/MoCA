@@ -15,6 +15,6 @@ clustering: {strategy: kmeans, num_clusters: 3, min_clusters: 2, max_clusters: 5
 sampling: {in_batch_size: 1, out_batch_size: 1, dataloader_workers: 0}
 optimization: {max_epochs: 3, gradient_accumulation_steps: 8, early_stopping_patience: 1, validation_batches: 50}
 generation: {max_new_tokens: 96, batch_size: 4}
-evaluation: {max_eval_examples: 256, nli_batch_size: 4, nli_max_length: 384}
+evaluation: {max_eval_examples: 256, nli_model: microsoft/deberta-large-mnli, nli_revision: 7296194b9009373def4f7c5dad292651e4b5cf4e, nli_batch_size: 4, nli_max_length: 512}
 runtime: {mixed_precision: fp16, device: cuda, seed: 2026}
 ablations: [paper]
