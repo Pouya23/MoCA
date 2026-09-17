@@ -163,8 +163,65 @@ ABLATIONS: dict[str, Ablation] = {
         frozenset({"lora.rank", "lora.alpha"}),
         _compose(_set("lora.rank", 80), _set("lora.alpha", 160)),
     ),
+        "moca_1p_full": Ablation(
+        "moca_1p_full",
+        "Full MoCA-1P calibrator: first-token confidence plus routing distance and margin.",
+        frozenset({"evaluation.calibration_features"}),
+        _set(
+            "evaluation.calibration_features",
+            [
+                "non_special_first_token_confidence",
+                "negative_log1p_routing_distance",
+                "routing_margin",
+            ],
+        ),
+    ),
+    "moca_1p_confidence_only": Ablation(
+        "moca_1p_confidence_only",
+        "MoCA-1P using only non-special first-token confidence.",
+        frozenset({"evaluation.calibration_features"}),
+        _set(
+            "evaluation.calibration_features",
+            [
+                "non_special_first_token_confidence",
+            ],
+        ),
+    ),
+    "moca_1p_geometry_only": Ablation(
+        "moca_1p_geometry_only",
+        "MoCA-1P using only router geometry: centroid distance and routing margin.",
+        frozenset({"evaluation.calibration_features"}),
+        _set(
+            "evaluation.calibration_features",
+            [
+                "negative_log1p_routing_distance",
+                "routing_margin",
+            ],
+        ),
+    ),
+    "moca_1p_distance_only": Ablation(
+        "moca_1p_distance_only",
+        "MoCA-1P using only negative log1p routing distance.",
+        frozenset({"evaluation.calibration_features"}),
+        _set(
+            "evaluation.calibration_features",
+            [
+                "negative_log1p_routing_distance",
+            ],
+        ),
+    ),
+    "moca_1p_margin_only": Ablation(
+        "moca_1p_margin_only",
+        "MoCA-1P using only the nearest-vs-second-nearest routing margin.",
+        frozenset({"evaluation.calibration_features"}),
+        _set(
+            "evaluation.calibration_features",
+            [
+                "routing_margin",
+            ],
+        ),
+    ),
 }
-
 
 def apply_ablations(config: dict[str, Any], names: list[str]) -> dict[str, Any]:
     result = copy.deepcopy(config)
