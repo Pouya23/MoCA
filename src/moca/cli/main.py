@@ -15,7 +15,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    from . import aggregate, calibrate, cluster, generate, prepare, train
+    from . import aggregate, calibrate, cluster, generate, infer, prepare, train
 
     commands = {
         "prepare": (prepare.configure_parser, prepare.run),
@@ -23,6 +23,8 @@ def build_parser() -> argparse.ArgumentParser:
         "train-expert": (train.configure_expert_parser, train.run_expert),
         "train-all": (train.configure_all_parser, train.run_all),
         "generate": (generate.configure_parser, generate.run),
+        # Download latest matching HF run and run inference.
+        "infer": (infer.configure_parser, infer.run),
         "calibrate": (calibrate.configure_parser, calibrate.run),
         "aggregate": (aggregate.configure_parser, aggregate.run),
     }
