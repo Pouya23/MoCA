@@ -1,0 +1,3 @@
+# Evaluation ablation: probability-threshold NLI decisions.
+experiment_name: qwen2.5-7b_coqa_threshold_nli
+ablations: [threshold_nli]

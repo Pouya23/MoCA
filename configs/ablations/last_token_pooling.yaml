@@ -1,0 +1,4 @@
+# Non-paper ablation: route with the last prompt-token embedding.
+experiment_name: qwen2.5-7b_coqa_last_token_pooling
+ablations: [last_token_pooling]
+

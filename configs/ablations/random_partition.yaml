@@ -1,0 +1,6 @@
+# Reviewer control: deterministic balanced random clusters with fixed k.
+experiment_name: qwen2.5-7b_coqa_random_partition_k5
+ablations: [random_partition]
+clustering:
+  num_clusters: 5
+

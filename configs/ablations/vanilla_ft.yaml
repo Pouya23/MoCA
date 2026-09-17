@@ -1,0 +1,4 @@
+# Paper baseline: one LoRA adapter trained on the complete fine-tuning corpus.
+experiment_name: qwen2.5-7b_coqa_vanilla_ft
+ablations: [vanilla_ft]
+

@@ -1,0 +1,4 @@
+# Raw one-pass first-token score without validation calibration.
+experiment_name: qwen2.5-7b_coqa_first_token_only_confidence
+ablations: [first_token_only_confidence]
+

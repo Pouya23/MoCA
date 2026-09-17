@@ -1,0 +1,132 @@
+# MoCA paper reproduction: Qwen2.5-7B on QuAC.
+# Inherits no external config; all effective values are explicit.
+experiment_name: qwen2.5-7b_quac_moca
+output_root: runs
+model:
+  name_or_path: Qwen/Qwen2.5-7B
+  revision: null
+  tokenizer_revision: null
+  trust_remote_code: false
+  torch_dtype: bfloat16
+  attn_implementation: null
+  use_cache: true
+data:
+  name: quac
+  dataset_id: allenai/quac
+  dataset_config: null
+  dataset_revision: null
+  local_jsonl: null
+  train_ratio: 0.8
+  validation_ratio: 0.1
+  test_ratio: 0.1
+  split_seed: 2026
+  split_unit: group
+  use_official_splits: false
+  include_dialogue_history: false
+  max_examples: null
+tokenization:
+  max_prompt_tokens: 1536
+  max_response_tokens: 256
+  prompt_truncation_side: left
+  add_special_tokens_to_prompt: true
+  response_prefix: " "
+  append_eos: true
+  include_eos_in_nll: true
+  pad_to_multiple_of: 8
+embedding:
+  layer: -1
+  pooling: last
+  normalize: false
+  max_length: 1536
+  batch_size: 8
+  dtype: float32
+clustering:
+  strategy: kmeans
+  # Paper procedure: select by silhouette over 2..10 (reported QuAC result: 2).
+  num_clusters: null
+  min_clusters: 2
+  max_clusters: 10
+  init: k-means++
+  n_init: 10
+  max_iter: 300
+  tolerance: 0.0001
+  random_seed: 2026
+  silhouette_sample_size: 10000
+  fit_scope: train
+lora:
+  rank: 16
+  alpha: 32
+  dropout: 0.0
+  target_modules: [q_proj, v_proj]
+  bias: none
+  init_lora_weights: true
+objective:
+  method: moca
+  lambda_kl: 0.1
+  num_ood_tokens: 1
+  kl_direction: model_to_uniform
+  uniform_scope: full_vocabulary
+  sequence_nll_reduction: sequence_sum_then_batch_mean
+  later_token_conditioning: gold
+sampling:
+  in_batch_size: 2
+  out_batch_size: 2
+  pseudo_ood_distribution: empirical_complement
+  replacement: true
+  dataloader_workers: 0
+optimization:
+  optimizer: adamw
+  learning_rate: 0.0002
+  weight_decay: 0.0
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_epsilon: 1.0e-8
+  scheduler: cosine
+  warmup_ratio: 0.0
+  max_epochs: 10
+  gradient_accumulation_steps: 8
+  max_grad_norm: 1.0
+  early_stopping_patience: 2
+  validation_batches: null
+  save_every_epoch: false
+generation:
+  do_sample: true
+  temperature: 1.0
+  top_p: 1.0
+  top_k: 0
+  max_new_tokens: 128
+  repetition_penalty: 1.0
+  batch_size: 4
+evaluation:
+  confidence_source: moca_1p
+  semantic_samples: 10
+  semantic_estimator: kuhn_eq4
+  semantic_confidence_mapping: exp_negative_entropy
+  nli_model: microsoft/deberta-large-mnli
+  nli_revision: null
+  entailment_threshold: 0.5
+  equivalence_rule: bidirectional_entailment
+  semantic_clustering_algorithm: representative_greedy
+  nli_decision_rule: argmax_entailment
+  include_prompt_in_nli: true
+  nli_batch_size: 16
+  nli_max_length: 512
+  nli_truncation_side: left
+  length_normalize_sequence_probability: true
+  max_eval_examples: null
+  cache_generations: true
+  calibration_features: [non_special_first_token_confidence, negative_log1p_routing_distance, routing_margin]
+  calibration_l2: 0.001
+  calibration_max_iter: 200
+  calibration_tolerance: 1.0e-8
+  calibrator_path: null
+  ece_bins: 15
+  abstain_threshold: null
+runtime:
+  seed: 2026
+  device: cuda
+  mixed_precision: bf16
+  deterministic: false
+  log_every_steps: 10
+  overwrite_existing: false
+ablations: [paper]

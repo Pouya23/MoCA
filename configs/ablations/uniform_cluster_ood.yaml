@@ -1,0 +1,4 @@
+# Non-paper ablation: sample OOD clusters uniformly.
+experiment_name: qwen2.5-7b_coqa_uniform_cluster_ood
+ablations: [uniform_cluster_ood]
+

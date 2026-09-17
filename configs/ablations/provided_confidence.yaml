@@ -1,0 +1,4 @@
+# Shared evaluator for external baselines whose JSONL contains a confidence field.
+experiment_name: external_baseline
+ablations: [provided_confidence]
+

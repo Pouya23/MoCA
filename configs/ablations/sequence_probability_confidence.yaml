@@ -1,0 +1,4 @@
+# One-pass likelihood baseline using the generated answer's mean token probability.
+experiment_name: qwen2.5-7b_coqa_sequence_probability
+ablations: [sequence_probability_confidence]
+

@@ -1,0 +1,4 @@
+# Reviewer comparison against the last-token main configuration.
+experiment_name: qwen2.5-7b_coqa_mean_token_pooling
+ablations: [mean_token_pooling]
+

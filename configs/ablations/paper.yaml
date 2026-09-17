@@ -1,0 +1,5 @@
+# Standalone Qwen2.5-7B/CoQA reference. For any other base config, prefer
+# `--ablation paper`; the paper ablation is intentionally a no-op.
+experiment_name: qwen2.5-7b_coqa_moca
+ablations: [paper]
+

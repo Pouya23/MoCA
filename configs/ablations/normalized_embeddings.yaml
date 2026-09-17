@@ -1,0 +1,4 @@
+# Non-paper ablation: L2-normalize embeddings before clustering/routing.
+experiment_name: qwen2.5-7b_coqa_normalized_embeddings
+ablations: [normalized_embeddings]
+

@@ -1,0 +1,3 @@
+# Evaluation ablation: pairwise transitive semantic-equivalence classes.
+experiment_name: qwen2.5-7b_coqa_transitive_semantic_clustering
+ablations: [transitive_semantic_clustering]

@@ -1,0 +1,14 @@
+# Standalone non-special-token uniform target ablation.
+experiment_name: kaggle_qwen2.5-0.5b_coqa_nonspecial_uniform
+output_root: runs/kaggle/ablations
+model: {name_or_path: Qwen/Qwen2.5-0.5B, torch_dtype: float16}
+data: {name: coqa, dataset_id: stanfordnlp/coqa, split_unit: group, max_examples: 1200}
+tokenization: {max_prompt_tokens: 768, max_response_tokens: 128}
+embedding: {pooling: last, max_length: 768, batch_size: 8, dtype: float16}
+clustering: {num_clusters: 3, silhouette_sample_size: 1200}
+sampling: {in_batch_size: 1, out_batch_size: 1}
+optimization: {max_epochs: 3, gradient_accumulation_steps: 8, early_stopping_patience: 1, validation_batches: 30}
+generation: {max_new_tokens: 96, batch_size: 4}
+evaluation: {max_eval_examples: 192, nli_batch_size: 4, nli_max_length: 384}
+runtime: {mixed_precision: fp16, device: cuda, seed: 2026}
+ablations: [non_special_uniform]

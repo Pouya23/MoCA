@@ -1,0 +1,4 @@
+# Paper baseline: K routed LoRA experts, in-cluster NLL only.
+experiment_name: qwen2.5-7b_coqa_k_ft
+ablations: [k_ft]
+

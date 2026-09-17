@@ -1,0 +1,3 @@
+# Parameter-matched single-LoRA control from the reviewer response.
+experiment_name: qwen2.5-7b_coqa_matched_rank80
+ablations: [vanilla_ft, matched_rank_80]

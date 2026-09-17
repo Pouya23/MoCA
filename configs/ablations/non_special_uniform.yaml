@@ -1,0 +1,4 @@
+# Non-paper ablation: define the uniform target over non-special tokens only.
+experiment_name: qwen2.5-7b_coqa_non_special_uniform
+ablations: [non_special_uniform]
+

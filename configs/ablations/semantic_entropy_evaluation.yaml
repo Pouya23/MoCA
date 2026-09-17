@@ -1,0 +1,5 @@
+# Offline ten-sample semantic-entropy diagnostic. This is not the deployment
+# confidence protocol; it is retained for comparison with sampling literature.
+experiment_name: qwen2.5-7b_coqa_semantic_entropy_evaluation
+ablations: [semantic_entropy_evaluation]
+

@@ -1,0 +1,14 @@
+# Kaggle diagnostic config. Meta Llama access must be accepted first.
+experiment_name: kaggle_llama3.2-1b_xsum_moca
+output_root: runs/kaggle
+model: {name_or_path: meta-llama/Llama-3.2-1B, torch_dtype: float16}
+data: {name: xsum, dataset_id: EdinburghNLP/xsum, split_unit: example, max_examples: 2000}
+tokenization: {max_prompt_tokens: 1024, max_response_tokens: 128}
+embedding: {pooling: last, max_length: 1024, batch_size: 6, dtype: float16}
+clustering: {strategy: kmeans, num_clusters: 3, min_clusters: 2, max_clusters: 5, silhouette_sample_size: 2000}
+sampling: {in_batch_size: 1, out_batch_size: 1, dataloader_workers: 0}
+optimization: {max_epochs: 3, gradient_accumulation_steps: 8, early_stopping_patience: 1, validation_batches: 50}
+generation: {max_new_tokens: 96, batch_size: 3}
+evaluation: {max_eval_examples: 256, nli_batch_size: 4, nli_max_length: 384}
+runtime: {mixed_precision: fp16, device: cuda, seed: 2026}
+ablations: [paper]

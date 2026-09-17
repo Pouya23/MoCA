@@ -1,0 +1,4 @@
+# Non-paper ablation: reverse D_KL(p || U) to D_KL(U || p).
+experiment_name: qwen2.5-7b_coqa_uniform_to_model_kl
+ablations: [uniform_to_model_kl]
+

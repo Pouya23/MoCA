@@ -1,0 +1,4 @@
+# Non-paper ablation: apply OOD regularization to five response positions.
+experiment_name: qwen2.5-7b_coqa_first_5_tokens
+ablations: [first_5_tokens]
+
