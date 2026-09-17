@@ -12,6 +12,7 @@ license = {file = "LICENSE"}
 dependencies = [
   "accelerate>=1.0,<3",
   "datasets>=3.0,<5",
+  "huggingface_hub>=0.27,<2",
   "numpy>=1.26",
   "peft>=0.13,<1",
   "PyYAML>=6.0",
