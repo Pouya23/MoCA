@@ -31,6 +31,13 @@ def _feature_value(row: Mapping[str, Any], name: str) -> float:
     elif name == "length_normalized_sequence_log_probability":
         token_count = max(1, int(row.get("generated_token_count", 1)))
         value = float(row["sequence_log_probability"]) / token_count
+    elif name == "relative_routing_margin":
+        d1 = max(0.0, float(row["routing_distance"]))
+        d2 = max(0.0, float(row["second_routing_distance"]))
+        if d2 <= 1e-12:
+            value = 0.0
+        else:
+            value = (d2 - d1) / d2
     else:
         value = float(row[name])
     if not math.isfinite(value):
