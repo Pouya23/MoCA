@@ -420,6 +420,9 @@ class ExperimentConfig:
             "length_normalized_sequence_log_probability",
             "relative_routing_margin",
             "negative_routing_distance_z",
+            "router_entropy",
+            "router_confidence",
+            "router_max_probability",
         }
         if not self.evaluation.calibration_features:
             raise ValueError("calibration_features must not be empty")
