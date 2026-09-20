@@ -280,6 +280,29 @@ ABLATIONS: dict[str, Ablation] = {
             ],
         ),
     ),
+    "moca_1p_normalized_distance": Ablation(
+        "moca_1p_normalized_distance",
+        "Use within-cluster standardized centroid distance.",
+        frozenset({"evaluation.calibration_features"}),
+        _set(
+            "evaluation.calibration_features",
+            [
+                "negative_routing_distance_z",
+            ],
+        ),
+    ),
+    "moca_1p_margin_normalized_distance": Ablation(
+        "moca_1p_margin_normalized_distance",
+        "Routing margin plus within-cluster standardized distance.",
+        frozenset({"evaluation.calibration_features"}),
+        _set(
+            "evaluation.calibration_features",
+            [
+                "routing_margin",
+                "negative_routing_distance_z",
+            ],
+        ),
+    ),
 }
 
 def apply_ablations(config: dict[str, Any], names: list[str]) -> dict[str, Any]:
