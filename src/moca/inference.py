@@ -46,6 +46,8 @@ class GeneratedResponse:
     calibrated_confidence: float | None
     abstained: bool
     routing_distance_z: float = 0.0
+    router_entropy: float = 0.0
+    router_max_probability: float = 1.0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -234,6 +236,68 @@ class RoutedMoCA:
         embeddings = self.embedder.encode(prompts)
         return self.clusters.route_with_geometry(embeddings)
 
+    def route_with_diagnostics(
+        self,
+        prompts: Sequence[str],
+    ) -> tuple[
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+    ]:
+        """Route prompts and expose all router uncertainty diagnostics.
+
+        Expert selection remains hard nearest-centroid routing.
+
+        Returns:
+            assignments
+            nearest_distance
+            second_nearest_distance
+            routing_margin
+            router_entropy
+            router_max_probability
+        """
+
+        if self.config.objective.method == "vanilla_ft":
+            count = len(prompts)
+
+            return (
+                np.zeros(
+                    count,
+                    dtype=np.int64,
+                ),
+                np.zeros(
+                    count,
+                    dtype=np.float32,
+                ),
+                np.zeros(
+                    count,
+                    dtype=np.float32,
+                ),
+                np.zeros(
+                    count,
+                    dtype=np.float32,
+                ),
+                np.zeros(
+                    count,
+                    dtype=np.float32,
+                ),
+                np.ones(
+                    count,
+                    dtype=np.float32,
+                ),
+            )
+
+        embeddings = self.embedder.encode(
+            prompts
+        )
+
+        return self.clusters.route_with_diagnostics(
+            embeddings
+        )
+
     def _encode_prompts(self, prompts: Sequence[str]) -> dict[str, Any]:
         original_side = self.tokenizer.truncation_side
         self.tokenizer.truncation_side = self.config.tokenization.prompt_truncation_side
@@ -344,7 +408,14 @@ class RoutedMoCA:
     ) -> list[GeneratedResponse]:
         if not prompts:
             return []
-        natural_assignments, distances, second_distances, margins = self.route_with_geometry(
+        (
+            natural_assignments,
+            distances,
+            second_distances,
+            margins,
+            router_entropies,
+            router_max_probabilities,
+        ) = self.route_with_diagnostics(
             prompts
         )
         if force_wrong_route:
@@ -377,6 +448,8 @@ class RoutedMoCA:
                     ) / distance_std
                     output.second_routing_distance = float(second_distances[original_index])
                     output.routing_margin = float(margins[original_index])
+                    output.router_entropy = float(router_entropies[original_index])
+                    output.router_max_probability = float(router_max_probabilities[original_index])
                     output.natural_expert_id = int(natural_assignments[original_index])
                     output.route_was_forced = force_wrong_route
                     results[original_index] = output
