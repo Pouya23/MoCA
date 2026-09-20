@@ -38,6 +38,8 @@ def _feature_value(row: Mapping[str, Any], name: str) -> float:
             value = 0.0
         else:
             value = (d2 - d1) / d2
+    elif name == "negative_routing_distance_z":
+        value = -float(row["routing_distance_z"])
     else:
         value = float(row[name])
     if not math.isfinite(value):
