@@ -245,6 +245,19 @@ ABLATIONS: dict[str, Ablation] = {
             ],
         ),
     ),
+    "moca_1p_legacy_v1": Ablation(
+        "moca_1p_legacy_v1",
+        "Original MoCA-1P: first-token confidence, raw centroid distance, and routing margin.",
+        frozenset({"evaluation.calibration_features"}),
+        _set(
+            "evaluation.calibration_features",
+            [
+                "non_special_first_token_confidence",
+                "negative_log1p_routing_distance",
+                "routing_margin",
+            ],
+        ),
+    ),
 }
 
 def apply_ablations(config: dict[str, Any], names: list[str]) -> dict[str, Any]:
