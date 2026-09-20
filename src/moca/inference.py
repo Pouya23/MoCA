@@ -22,6 +22,7 @@ from .modeling import (
     require_torch,
 )
 from .utils import files_fingerprint
+from .artifacts import read_jsonl
 
 
 @dataclass
@@ -44,6 +45,7 @@ class GeneratedResponse:
     generated_token_count: int
     calibrated_confidence: float | None
     abstained: bool
+    routing_distance_z: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -116,6 +118,41 @@ def _transition_log_probabilities(model, outputs, lengths: Sequence[int]) -> lis
     return values
 
 
+def _cluster_distance_statistics(run_dir, num_clusters):
+    grouped: list[list[float]] = [
+        [] for _ in range(num_clusters)
+    ]
+
+    for row in read_jsonl(run_dir / "clusters" / "train.jsonl"):
+        cluster_id = int(row["cluster_id"])
+        metadata = row.get("metadata", {})
+
+        distance = float(
+            metadata["routing_distance_to_assigned_centroid"]
+        )
+
+        grouped[cluster_id].append(distance)
+
+    statistics = []
+
+    for values in grouped:
+        array = np.asarray(values, dtype=np.float64)
+
+        if len(array) == 0:
+            statistics.append((0.0, 1.0))
+            continue
+
+        mean = float(array.mean())
+        std = float(array.std())
+
+        if std < 1e-8:
+            std = 1.0
+
+        statistics.append((mean, std))
+
+    return statistics
+
+
 class RoutedMoCA:
     """Single-adapter hard-routed MoCA inference.
 
@@ -172,6 +209,12 @@ class RoutedMoCA:
                     raise ValueError(
                         "Saved calibrator features do not match evaluation.calibration_features"
                     )
+        self.cluster_distance_statistics = (
+            _cluster_distance_statistics(
+                config.run_dir,
+                self.clusters.num_clusters,
+            )
+        )
 
     def route(self, prompts: Sequence[str]) -> tuple[np.ndarray, np.ndarray]:
         assignments, nearest, _, _ = self.route_with_geometry(prompts)
@@ -325,6 +368,13 @@ class RoutedMoCA:
                 )
                 for output, original_index in zip(generated, batch_indices):
                     output.routing_distance = float(distances[original_index])
+                    natural_expert = int(natural_assignments[original_index])
+                    distance_mean, distance_std = (
+                        self.cluster_distance_statistics[natural_expert]
+                    )
+                    output.routing_distance_z = (
+                        float(distances[original_index]) - distance_mean
+                    ) / distance_std
                     output.second_routing_distance = float(second_distances[original_index])
                     output.routing_margin = float(margins[original_index])
                     output.natural_expert_id = int(natural_assignments[original_index])
