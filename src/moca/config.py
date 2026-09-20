@@ -419,6 +419,7 @@ class ExperimentConfig:
             "routing_margin",
             "length_normalized_sequence_log_probability",
             "relative_routing_margin",
+            "negative_routing_distance_z",
         }
         if not self.evaluation.calibration_features:
             raise ValueError("calibration_features must not be empty")
