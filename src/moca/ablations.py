@@ -303,6 +303,85 @@ ABLATIONS: dict[str, Ablation] = {
             ],
         ),
     ),
+    "moca_1p_router_confidence_only": Ablation(
+        "moca_1p_router_confidence_only",
+        "MoCA-1P using normalized full-router confidence only.",
+        frozenset(
+            {
+                "evaluation.calibration_features",
+            }
+        ),
+        _set(
+            "evaluation.calibration_features",
+            [
+                "router_confidence",
+            ],
+        ),
+    ),
+    "moca_1p_router_max_probability_only": Ablation(
+        "moca_1p_router_max_probability_only",
+        "MoCA-1P using the maximum probability of the centroid-derived router distribution.",
+        frozenset(
+            {
+                "evaluation.calibration_features",
+            }
+        ),
+        _set(
+            "evaluation.calibration_features",
+            [
+                "router_max_probability",
+            ],
+        ),
+    ),
+    "moca_1p_margin_router_confidence": Ablation(
+        "moca_1p_margin_router_confidence",
+        "MoCA-1P using top-2 routing margin plus full-router confidence.",
+        frozenset(
+            {
+                "evaluation.calibration_features",
+            }
+        ),
+        _set(
+            "evaluation.calibration_features",
+            [
+                "routing_margin",
+                "router_confidence",
+            ],
+        ),
+    ),
+    "moca_1p_margin_router_max_probability": Ablation(
+        "moca_1p_margin_router_max_probability",
+        "MoCA-1P using top-2 routing margin plus maximum router probability.",
+        frozenset(
+            {
+                "evaluation.calibration_features",
+            }
+        ),
+        _set(
+            "evaluation.calibration_features",
+            [
+                "routing_margin",
+                "router_max_probability",
+            ],
+        ),
+    ),
+    "moca_1p_full_router_geometry": Ablation(
+        "moca_1p_full_router_geometry",
+        "MoCA-1P using routing margin, full-router entropy confidence, and maximum router probability.",
+        frozenset(
+            {
+                "evaluation.calibration_features",
+            }
+        ),
+        _set(
+            "evaluation.calibration_features",
+            [
+                "routing_margin",
+                "router_confidence",
+                "router_max_probability",
+            ],
+        ),
+    ),
 }
 
 def apply_ablations(config: dict[str, Any], names: list[str]) -> dict[str, Any]:
