@@ -40,6 +40,21 @@ class ClusterArtifacts:
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         return route_embeddings_with_geometry(embeddings, self.centroids)
 
+    def route_with_diagnostics(
+        self,
+        embeddings: np.ndarray,
+    ) -> tuple[
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+    ]:
+        return route_embeddings_with_diagnostics(
+            embeddings,
+             self.centroids,
+        )
 
 def cluster_fingerprint(artifacts: ClusterArtifacts) -> str:
     """Return a content hash for a router and its training assignments."""
@@ -85,42 +100,294 @@ def route_embeddings_with_geometry(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Route points and return nearest/second-nearest distances and margin.
 
-    The margin is ``d2 - d1``.  For a one-centroid vanilla baseline, d2 and
-    the margin are defined as zero so downstream calibration stays finite.
+    The margin is ``d2 - d1``.
+
+    For a one-centroid vanilla baseline, d2 and the margin are defined
+    as zero so downstream calibration stays finite.
     """
 
-    points = np.asarray(embeddings, dtype=np.float32)
-    centers = np.asarray(centroids, dtype=np.float32)
-    if points.ndim != 2 or centers.ndim != 2:
-        raise ValueError("Embeddings and centroids must both be rank-two arrays")
-    if points.shape[1] != centers.shape[1]:
-        raise ValueError(
-            f"Embedding dimension {points.shape[1]} does not match "
-            f"centroid dimension {centers.shape[1]}"
+    distances = centroid_distance_matrix(
+        embeddings,
+        centroids,
+    )
+
+    num_examples, num_centroids = distances.shape
+
+    # np.argmin preserves the previous deterministic lowest-index
+    # tie-breaking behavior.
+    assignments = np.argmin(
+        distances,
+        axis=1,
+    ).astype(np.int64)
+
+    nearest = distances[
+        np.arange(num_examples),
+        assignments,
+    ].astype(np.float32)
+
+    if num_centroids == 1:
+        second_nearest = np.zeros(
+            num_examples,
+            dtype=np.float32,
         )
-    # Algebraically equivalent to the broadcasted difference, but O(NK)
-    # rather than O(NKD) auxiliary memory for long-text evaluation sets.
-    squared_distances = (
-        np.square(points).sum(axis=1, keepdims=True)
-        + np.square(centers).sum(axis=1, keepdims=True).T
-        - 2.0 * (points @ centers.T)
-    )
-    # Roundoff can make an exact zero slightly negative.
-    np.maximum(squared_distances, 0.0, out=squared_distances)
-    # np.argmin deliberately gives deterministic lowest-index tie breaking.
-    assignments = np.argmin(squared_distances, axis=1).astype(np.int64)
-    nearest = np.sqrt(squared_distances[np.arange(points.shape[0]), assignments]).astype(
-        np.float32
-    )
-    if centers.shape[0] == 1:
-        second_nearest = np.zeros(points.shape[0], dtype=np.float32)
-        margins = np.zeros(points.shape[0], dtype=np.float32)
+        margins = np.zeros(
+            num_examples,
+            dtype=np.float32,
+        )
     else:
-        two_smallest = np.partition(squared_distances, kth=1, axis=1)[:, :2]
+        two_smallest = np.partition(
+            distances,
+            kth=1,
+            axis=1,
+        )[:, :2]
+
         two_smallest.sort(axis=1)
-        second_nearest = np.sqrt(two_smallest[:, 1]).astype(np.float32)
-        margins = (second_nearest - nearest).astype(np.float32)
-    return assignments, nearest, second_nearest, margins
+
+        second_nearest = two_smallest[
+            :,
+            1,
+        ].astype(np.float32)
+
+        margins = (
+            second_nearest - nearest
+        ).astype(np.float32)
+
+    return (
+        assignments,
+        nearest,
+        second_nearest,
+        margins,
+    )
+
+
+def router_distribution_from_distances(
+    distances: np.ndarray,
+) -> np.ndarray:
+    """Convert centroid distances into a normalized router distribution.
+
+    This is NOT used for expert selection. Hard routing remains nearest
+    centroid exactly as before.
+
+    We normalize by each prompt's mean centroid distance before the
+    softmax so router ambiguity is less sensitive to the absolute scale
+    of the embedding space.
+
+        r_k(x) ∝ exp(-d_k(x) / mean_j d_j(x))
+
+    Returns:
+        probabilities with shape [N, K].
+    """
+
+    values = np.asarray(
+        distances,
+        dtype=np.float64,
+    )
+
+    if values.ndim != 2:
+        raise ValueError(
+            "Router distances must be a rank-two array"
+        )
+
+    if values.shape[1] < 1:
+        raise ValueError(
+            "At least one centroid is required"
+        )
+
+    if not np.isfinite(values).all():
+        raise ValueError(
+            "Router distances contain NaN or infinite values"
+        )
+
+    if np.any(values < 0):
+        raise ValueError(
+            "Router distances must be non-negative"
+        )
+
+    # Vanilla one-expert baseline.
+    if values.shape[1] == 1:
+        return np.ones(
+            (values.shape[0], 1),
+            dtype=np.float32,
+        )
+
+    scale = values.mean(
+        axis=1,
+        keepdims=True,
+    )
+
+    scale = np.maximum(
+        scale,
+        1e-8,
+    )
+
+    logits = -values / scale
+
+    # Numerically stable softmax.
+    logits -= logits.max(
+        axis=1,
+        keepdims=True,
+    )
+
+    probabilities = np.exp(logits)
+
+    probabilities /= probabilities.sum(
+        axis=1,
+        keepdims=True,
+    )
+
+    return probabilities.astype(
+        np.float32,
+        copy=False,
+    )
+
+
+def router_uncertainty_from_distances(
+    distances: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return normalized router entropy and maximum router probability.
+
+    Normalized entropy:
+
+        H_R = -sum_k r_k log(r_k) / log(K)
+
+    Therefore:
+        0 -> highly decisive routing
+        1 -> maximally ambiguous routing
+
+    max_probability is:
+        max_k r_k
+
+    For K=1:
+        entropy = 0
+        max_probability = 1
+    """
+
+    probabilities = (
+        router_distribution_from_distances(
+            distances
+        )
+    )
+
+    num_centroids = probabilities.shape[1]
+
+    if num_centroids == 1:
+        return (
+            np.zeros(
+                probabilities.shape[0],
+                dtype=np.float32,
+            ),
+            np.ones(
+                probabilities.shape[0],
+                dtype=np.float32,
+            ),
+        )
+
+    safe_probabilities = np.maximum(
+        probabilities.astype(np.float64),
+        1e-12,
+    )
+
+    entropy = -np.sum(
+        safe_probabilities
+        * np.log(safe_probabilities),
+        axis=1,
+    )
+
+    entropy /= np.log(num_centroids)
+
+    max_probability = probabilities.max(
+        axis=1
+    )
+
+    return (
+        entropy.astype(np.float32),
+        max_probability.astype(np.float32),
+    )
+
+
+def route_embeddings_with_diagnostics(
+    embeddings: np.ndarray,
+    centroids: np.ndarray,
+) -> tuple[
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+]:
+    """Hard-route embeddings and additionally expose router uncertainty.
+
+    Returns:
+        assignments
+        nearest_distance
+        second_nearest_distance
+        routing_margin
+        router_entropy
+        router_max_probability
+
+    Hard routing itself is unchanged.
+    """
+
+    distances = centroid_distance_matrix(
+        embeddings,
+        centroids,
+    )
+
+    num_examples, num_centroids = distances.shape
+
+    assignments = np.argmin(
+        distances,
+        axis=1,
+    ).astype(np.int64)
+
+    nearest = distances[
+        np.arange(num_examples),
+        assignments,
+    ].astype(np.float32)
+
+    if num_centroids == 1:
+        second_nearest = np.zeros(
+            num_examples,
+            dtype=np.float32,
+        )
+        margins = np.zeros(
+            num_examples,
+            dtype=np.float32,
+        )
+    else:
+        two_smallest = np.partition(
+            distances,
+            kth=1,
+            axis=1,
+        )[:, :2]
+
+        two_smallest.sort(axis=1)
+
+        second_nearest = two_smallest[
+            :,
+            1,
+        ].astype(np.float32)
+
+        margins = (
+            second_nearest - nearest
+        ).astype(np.float32)
+
+    (
+        router_entropy,
+        router_max_probability,
+    ) = router_uncertainty_from_distances(
+        distances
+    )
+
+    return (
+        assignments,
+        nearest,
+        second_nearest,
+        margins,
+        router_entropy,
+        router_max_probability,
+    )
 
 
 def _candidate_cluster_counts(config: ClusteringConfig, n_samples: int) -> list[int]:
@@ -374,3 +641,51 @@ def validate_router_compatibility(
         raise ValueError("Router was created with a different base model")
     if artifacts.base_model_revision != base_model_revision:
         raise ValueError("Router was created with a different base-model revision")
+
+
+def centroid_distance_matrix(
+    embeddings: np.ndarray,
+    centroids: np.ndarray,
+) -> np.ndarray:
+    """Return Euclidean distance from every embedding to every centroid.
+
+    Shape:
+        embeddings: [N, D]
+        centroids:  [K, D]
+        return:     [N, K]
+
+    This uses O(NK) auxiliary memory rather than explicitly constructing
+    an [N, K, D] broadcasted difference tensor.
+    """
+
+    points = np.asarray(embeddings, dtype=np.float32)
+    centers = np.asarray(centroids, dtype=np.float32)
+
+    if points.ndim != 2 or centers.ndim != 2:
+        raise ValueError(
+            "Embeddings and centroids must both be rank-two arrays"
+        )
+
+    if points.shape[1] != centers.shape[1]:
+        raise ValueError(
+            f"Embedding dimension {points.shape[1]} does not match "
+            f"centroid dimension {centers.shape[1]}"
+        )
+
+    squared_distances = (
+        np.square(points).sum(axis=1, keepdims=True)
+        + np.square(centers).sum(axis=1, keepdims=True).T
+        - 2.0 * (points @ centers.T)
+    )
+
+    # Floating-point roundoff can turn exact zeros slightly negative.
+    np.maximum(
+        squared_distances,
+        0.0,
+        out=squared_distances,
+    )
+
+    return np.sqrt(squared_distances).astype(
+        np.float32,
+        copy=False,
+    )
