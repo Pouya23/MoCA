@@ -258,6 +258,28 @@ ABLATIONS: dict[str, Ablation] = {
             ],
         ),
     ),
+    "moca_1p_relative_margin": Ablation(
+        "moca_1p_relative_margin",
+        "Use scale-free nearest-vs-second-nearest routing margin.",
+        frozenset({"evaluation.calibration_features"}),
+        _set(
+            "evaluation.calibration_features",
+            [
+                "relative_routing_margin",
+            ],
+        ),
+    ),
+    "moca_1p_relative_margin": Ablation(
+        "moca_1p_relative_margin",
+        "Use scale-free nearest-vs-second-nearest routing margin.",
+        frozenset({"evaluation.calibration_features"}),
+        _set(
+            "evaluation.calibration_features",
+            [
+                "relative_routing_margin",
+            ],
+        ),
+    ),
 }
 
 def apply_ablations(config: dict[str, Any], names: list[str]) -> dict[str, Any]:
