@@ -38,6 +38,10 @@ def _feature_value(row: Mapping[str, Any], name: str) -> float:
             value = 0.0
         else:
             value = (d2 - d1) / d2
+    elif name == "router_confidence":
+        # Normalized router entropy lies in [0, 1].
+        # Turning it into confidence makes larger = more decisive.
+        value = 1.0 - float(row["router_entropy"])
     elif name == "negative_routing_distance_z":
         value = -float(row["routing_distance_z"])
     else:
